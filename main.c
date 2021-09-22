@@ -107,29 +107,16 @@ void tud_resume_cb(void)
 // USB HID
 //--------------------------------------------------------------------+
 
-static void send_hid_report(uint8_t report_id)
+static void send_hid_report()
 {
   // skip if hid is not ready yet
   if ( !tud_hid_ready() ) return;
 
-  switch(report_id)
-  {
-    case REPORT_ID_KEYBOARD:
-    {
+  uint8_t keycodes[KEYBOARD_REPORT_SIZE];
+  memcpy(keycodes, get_key_report(), KEYBOARD_REPORT_SIZE);
 
-      uint8_t keycode[6];
-      // I AM STUPID AND DESERVE TO BE SMASHED BUT I AM ALSO LAZY
-      for (int i = 0; i < 6; i++) {
-        keycode[i] = get_key_report()[i];
-      }
-
-      // use to avoid send multiple consecutive zero report for keyboard
-      tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
-    }
-    break;
-
-    default: break;
-  }
+  // use to avoid send multiple consecutive zero report for keyboard
+  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycodes);
 }
 
 // Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
@@ -137,13 +124,13 @@ static void send_hid_report(uint8_t report_id)
 void hid_task(void)
 {
   // Poll every 1ms
+  /*
   const uint32_t interval_ms = 1;
   static uint32_t start_ms = 0;
 
   if ( board_millis() - start_ms < interval_ms) return; // not enough time
   start_ms += interval_ms;
-
-  //uint32_t const btn = board_button_read();
+  */
 
   bool changed = keyboard_update();
   if (!changed) return;
@@ -155,7 +142,7 @@ void hid_task(void)
     tud_remote_wakeup();
   } else {
     // Send the 1st of report chain, the rest will be sent by tud_hid_report_complete_cb()
-    send_hid_report(REPORT_ID_KEYBOARD);
+    send_hid_report();
   }
 }
 
@@ -167,14 +154,7 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint8_t
   (void) instance;
   (void) len;
 
-  return; // not sure we need this function, so test remove here
-
-  uint8_t next_report_id = report[0] + 1;
-
-  if (next_report_id < REPORT_ID_COUNT)
-  {
-    send_hid_report(next_report_id);//, board_button_read());
-  }
+  return;
 }
 
 // Invoked when received GET_REPORT control request

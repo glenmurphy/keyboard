@@ -22,7 +22,7 @@ bool key_hardware_state[NUM_KEYS]; // current state of hardware
 int key_current_edge[NUM_KEYS]; // 0: nothing, 1 - rising, -1: falling
 
 int key_report_index[NUM_KEYS]; // index of a given key in the key_report - changes constantly
-uint8_t key_report[6] = {0};
+uint8_t key_report[KEYBOARD_REPORT_SIZE] = {0};
 
 int modifier_key = -1;
 
@@ -49,7 +49,7 @@ void keyboard_init() {
   memset(key_reported_time, 0, NUM_KEYS);
   memset(key_hardware_state, false, NUM_KEYS);
   memset(key_current_edge, 0, NUM_KEYS);
-  memset(key_report, 0, 6);
+  memset(key_report, 0, KEYBOARD_REPORT_SIZE);
 
   // Codes from hid.h in tinyusb/src/class/hid
   add_key(0, HID_KEY_R, HID_KEY_4);
@@ -76,6 +76,53 @@ void keyboard_init() {
   add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
 
   modifier_key = add_key(12, NO_KEY, NO_KEY);// special modifier
+}
+
+void press(int key_code) {
+  if (key_code == NO_KEY) return;
+
+  // Need to verify what happens if a key replaces a previous key in a frame; 
+  // limited testing indicates that the previous key stops being reported, which
+  // is good if we replace a key that was released in this frame
+  for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
+    if (key_report[i] == 0) {
+      key_report[i] = key_code;
+      return;
+    }
+  }
+}
+
+void release(int key_code) {
+  if (key_code == NO_KEY) return;
+
+  for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
+    if (key_report[i] == key_code) {
+      key_report[i] = 0;
+      return;
+    }
+  }
+}
+
+void update_pressed() {
+  bool modifier = key_reported_state[modifier_key];
+
+  for (int i = 0; i < NUM_KEYS; i++) {
+    if (i == modifier_key)
+      continue;
+    
+    if (key_current_edge[i] == 1) {
+      // Releasing both codes is cheap, and doesn't have side effects if do it when we're not down
+      release(key_codes[i]);
+      release(key_mod_codes[i]);
+    }
+
+    if (key_current_edge[i] == -1) {
+      if (modifier)
+        press(key_mod_codes[i]);
+      else
+        press(key_codes[i]);
+    }
+  }
 }
 
 bool keyboard_update() {
@@ -109,51 +156,10 @@ bool keyboard_update() {
     }
   }
 
-  bool modifier = key_reported_state[modifier_key];
-  for (int i = 0; i < NUM_KEYS; i++) {
-    if (i == modifier_key)
-      continue;
-    
-    if (key_current_edge[i] == 1) {
-      // Releasing both codes is cheap, and doesn't have side effects if do it when we're not down
-      release(key_codes[i]);
-      release(key_mod_codes[i]);
-    }
-
-    if (key_current_edge[i] == -1) {
-      if (modifier)
-        press(key_mod_codes[i]);
-      else
-        press(key_codes[i]);
-    }
-  }
+  if (changed)
+    update_pressed();
 
   return changed;
-}
-
-void press(int key_code) {
-  if (key_code == NO_KEY) return;
-
-  // Need to verify what happens if a key replaces a previous key in a frame; 
-  // limited testing indicates that the previous key stops being reported, which
-  // is good if we replace a key that was released in this frame
-  for (int i = 0; i < 6; i++) {
-    if (key_report[i] == 0) {
-      key_report[i] = key_code;
-      return;
-    }
-  }
-}
-
-void release(int key_code) {
-  if (key_code == NO_KEY) return;
-
-  for (int i = 0; i < 6; i++) {
-    if (key_report[i] == key_code) {
-      key_report[i] = 0;
-      return;
-    }
-  }
 }
 
 bool key_is_rising(int i) { // button released
