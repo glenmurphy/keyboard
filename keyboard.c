@@ -16,12 +16,9 @@ int key_pins[NUM_KEYS] = {0};
 
 bool key_reported_state[NUM_KEYS];
 int key_reported_time[NUM_KEYS]; // time of last report
-
 bool key_hardware_state[NUM_KEYS]; // current state of hardware
-
 int key_current_edge[NUM_KEYS]; // 0: nothing, 1 - rising, -1: falling
 
-int key_report_index[NUM_KEYS]; // index of a given key in the key_report - changes constantly
 uint8_t key_report[KEYBOARD_REPORT_SIZE] = {0};
 
 int modifier_key = -1;
@@ -75,21 +72,26 @@ void keyboard_init() {
   add_key(17, HID_KEY_TAB, NO_KEY);
   add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
 
-  modifier_key = add_key(12, NO_KEY, NO_KEY);// special modifier
+  modifier_key = add_key(12, NO_KEY, NO_KEY); // special modifier
 }
 
 void press(int key_code) {
   if (key_code == NO_KEY) return;
 
-  // Need to verify what happens if a key replaces a previous key in a frame; 
-  // limited testing indicates that the previous key stops being reported, which
-  // is good if we replace a key that was released in this frame
+  int index = -1;
   for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
-    if (key_report[i] == 0) {
-      key_report[i] = key_code;
+    // Check to see if key is already pressed
+    if (key_report[i] == key_code)
       return;
-    }
+
+    // Found a free slot - we assume it's OK if this was emptied in the same
+    // update because replacing a key in a slot will release it anyway
+    if (key_report[i] == 0 && index == -1)
+      index = i;
   }
+
+  if (index != -1)
+    key_report[index] = key_code;
 }
 
 void release(int key_code) {
@@ -110,19 +112,55 @@ void update_pressed() {
     if (i == modifier_key)
       continue;
     
-    if (key_current_edge[i] == 1) {
+    if (key_current_edge[i] == -1) {
+      press(modifier ? key_mod_codes[i] : key_codes[i]);
+    } else if (key_current_edge[i] == 1) {
       // Releasing both codes is cheap, and doesn't have side effects if do it when we're not down
       release(key_codes[i]);
       release(key_mod_codes[i]);
     }
-
-    if (key_current_edge[i] == -1) {
-      if (modifier)
-        press(key_mod_codes[i]);
-      else
-        press(key_codes[i]);
-    }
   }
+}
+
+bool run_tests() {
+  static int flood = 0;
+  bool modifier = key_reported_state[modifier_key];
+  
+  if (modifier) {
+    flood = 20;
+  }
+
+  if (flood > 0) {
+    if (flood == 19) {
+      press(HID_KEY_A);
+    } 
+    if (flood == 18) {
+      press(HID_KEY_B);
+    } 
+    if (flood == 17) {
+      press(HID_KEY_C);
+    } 
+    if (flood == 16) {
+      press(HID_KEY_D);
+    } 
+    if (flood == 15) {
+      press(HID_KEY_E);
+    } 
+    if (flood == 14) {
+      press(HID_KEY_F);
+    } 
+    if (flood == 1) {
+      release(HID_KEY_A);
+      release(HID_KEY_B);
+      release(HID_KEY_C);
+      release(HID_KEY_D);
+      release(HID_KEY_E);
+      release(HID_KEY_F);
+    } 
+    flood--;
+    return true;
+  }
+  return false;
 }
 
 bool keyboard_update() {
@@ -158,6 +196,9 @@ bool keyboard_update() {
 
   if (changed)
     update_pressed();
+
+  if (run_tests())
+    return true;
 
   return changed;
 }

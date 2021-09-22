@@ -1,4 +1,4 @@
-Keyboard HID implementation for the Raspberry Pico / RP2040, based on the TinyUSB hid_composite example. Runs at 1000hz.
+Keyboard HID implementation for the Raspberry Pico / RP2040, based on the TinyUSB hid_composite example. Runs at 8000hz.
 
 ### Build instructions
 

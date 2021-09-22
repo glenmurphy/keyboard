@@ -4,6 +4,7 @@
 #define KEYBOARD_H_
 
 #define KEYBOARD_REPORT_SIZE 6
+#define KEYBOARD_POLL_RATE_US 125
 
 void keyboard_init();
 bool keyboard_update();
