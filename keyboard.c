@@ -75,7 +75,7 @@ void keyboard_init() {
   add_key(17, HID_KEY_TAB, NO_KEY);
   add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
 
-  modifier_key = add_key(12, HID_KEY_SHIFT_RIGHT, NO_MOD_KEY);// special modifier
+  modifier_key = add_key(12, NO_KEY, NO_KEY);// special modifier
 }
 
 bool keyboard_update() {
