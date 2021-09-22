@@ -29,7 +29,6 @@
 
 #include "bsp/board.h"
 #include "tusb.h"
-
 #include "usb_descriptors.h"
 
 #include "keyboard.h"
@@ -106,34 +105,36 @@ void tud_resume_cb(void)
 //--------------------------------------------------------------------+
 // USB HID
 //--------------------------------------------------------------------+
-
+bool queued = false;
 static void send_hid_report()
 {
-  // skip if hid is not ready yet
-  if ( !tud_hid_ready() ) return;
+  if (!tud_hid_ready()) {
+    queued = true;
+    return;
+  }
 
   uint8_t keycodes[KEYBOARD_REPORT_SIZE];
   memcpy(keycodes, get_key_report(), KEYBOARD_REPORT_SIZE);
 
   // use to avoid send multiple consecutive zero report for keyboard
   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycodes);
+  queued = false;
 }
 
 // Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
 void hid_task(void)
 {
-  // Poll every 1ms
-  /*
-  const uint32_t interval_ms = 1;
-  static uint32_t start_ms = 0;
+  // Poll very quickly - faster than our USB polling rate
+  // (see TUD_HID_DESCRIPTOR in usb_descriptors.c)
+  const uint64_t interval_us = KEYBOARD_POLL_RATE_US/2 + 1;
+  static uint64_t start_us = 0;
 
-  if ( board_millis() - start_ms < interval_ms) return; // not enough time
-  start_ms += interval_ms;
-  */
+  if (time_us_64() - start_us < interval_us) return; // not enough time
+  start_us += interval_us;
 
   bool changed = keyboard_update();
-  if (!changed) return;
+  if (!queued && !changed) return;
 
   // Remote wakeup
   if (tud_suspended()) {
