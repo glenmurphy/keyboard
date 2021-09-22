@@ -166,7 +166,7 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint8_t
 {
   (void) instance;
   (void) len;
-  
+
   return; // not sure we need this function, so test remove here
 
   uint8_t next_report_id = report[0] + 1;

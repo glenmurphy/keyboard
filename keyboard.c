@@ -8,6 +8,7 @@
 
 #define NUM_KEYS 19
 #define DEBOUNCE_MS 12
+#define NO_KEY -1
 
 int key_codes[NUM_KEYS] = {0};
 int key_mod_codes[NUM_KEYS] = {0};
@@ -27,7 +28,7 @@ int modifier_key = -1;
 
 int add_key(int pin, int key_code, int key_mod_code) {
   static int add_index = 0;
-  
+
   gpio_init(pin);
   gpio_set_dir(pin, GPIO_IN);
   gpio_pull_up(pin);
@@ -55,12 +56,12 @@ void keyboard_init() {
   add_key(1, HID_KEY_F, HID_KEY_ENTER);
   add_key(2, HID_KEY_V, HID_KEY_BACKSPACE);
 
-  add_key(3, HID_KEY_ALT_RIGHT, -1);
-  add_key(4, HID_KEY_PAGE_UP, -1);
+  add_key(3, HID_KEY_ALT_RIGHT, NO_KEY);
+  add_key(4, HID_KEY_PAGE_UP, NO_KEY);
   add_key(5, HID_KEY_E, HID_KEY_3);
   add_key(6, HID_KEY_D, HID_KEY_F3);
   add_key(7, HID_KEY_C, HID_KEY_F6);
-  add_key(8, HID_KEY_SPACE, -1);
+  add_key(8, HID_KEY_SPACE, NO_KEY);
   add_key(9, HID_KEY_W, HID_KEY_2);
 
   add_key(10, HID_KEY_S, HID_KEY_F2);
@@ -70,11 +71,11 @@ void keyboard_init() {
   add_key(14, HID_KEY_A, HID_KEY_F1);
   add_key(15, HID_KEY_Z, HID_KEY_F4);
 
-  add_key(16, HID_KEY_ESCAPE, -1);
-  add_key(17, HID_KEY_TAB, -1);
-  add_key(18, HID_KEY_SHIFT_LEFT, -1);
+  add_key(16, HID_KEY_ESCAPE, NO_KEY);
+  add_key(17, HID_KEY_TAB, NO_KEY);
+  add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
 
-  modifier_key = add_key(12, HID_KEY_SHIFT_RIGHT, -1);// special modifier
+  modifier_key = add_key(12, HID_KEY_SHIFT_RIGHT, NO_MOD_KEY);// special modifier
 }
 
 bool keyboard_update() {
@@ -114,6 +115,7 @@ bool keyboard_update() {
       continue;
     
     if (key_current_edge[i] == 1) {
+      // Releasing both codes is cheap, and doesn't have side effects if do it when we're not down
       release(key_codes[i]);
       release(key_mod_codes[i]);
     }
@@ -130,6 +132,8 @@ bool keyboard_update() {
 }
 
 void press(int key_code) {
+  if (key_code == NO_KEY) return;
+
   // Need to verify what happens if a key replaces a previous key in a frame; 
   // limited testing indicates that the previous key stops being reported, which
   // is good if we replace a key that was released in this frame
@@ -142,6 +146,8 @@ void press(int key_code) {
 }
 
 void release(int key_code) {
+  if (key_code == NO_KEY) return;
+
   for (int i = 0; i < 6; i++) {
     if (key_report[i] == key_code) {
       key_report[i] = 0;
