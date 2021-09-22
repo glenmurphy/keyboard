@@ -22,6 +22,7 @@ int key_current_edge[NUM_KEYS]; // 0: nothing, 1 - rising, -1: falling
 uint8_t key_report[KEYBOARD_REPORT_SIZE] = {0};
 
 int modifier_key = -1;
+int esc_key = -1;
 
 int add_key(int pin, int key_code, int key_mod_code) {
   static int add_index = 0;
@@ -68,7 +69,7 @@ void keyboard_init() {
   add_key(14, HID_KEY_A, HID_KEY_F1);
   add_key(15, HID_KEY_Z, HID_KEY_F4);
 
-  add_key(16, HID_KEY_ESCAPE, NO_KEY);
+  esc_key = add_key(16, HID_KEY_ESCAPE, NO_KEY);
   add_key(17, HID_KEY_TAB, NO_KEY);
   add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
 
@@ -122,31 +123,32 @@ void update_pressed() {
   }
 }
 
-bool run_tests() {
+bool check_tests() {
   static int flood = 0;
+  const int flood_start = 50;
   bool modifier = key_reported_state[modifier_key];
   
-  if (modifier) {
-    flood = 20;
+  if (key_reported_state[modifier_key] && key_reported_state[esc_key]) {
+    flood = flood_start;
   }
 
   if (flood > 0) {
-    if (flood == 19) {
+    if (flood == flood_start - 1) {
       press(HID_KEY_A);
     } 
-    if (flood == 18) {
+    if (flood == flood_start - 2) {
       press(HID_KEY_B);
     } 
-    if (flood == 17) {
+    if (flood == flood_start - 3) {
       press(HID_KEY_C);
     } 
-    if (flood == 16) {
+    if (flood == flood_start - 4) {
       press(HID_KEY_D);
     } 
-    if (flood == 15) {
+    if (flood == flood_start - 5) {
       press(HID_KEY_E);
     } 
-    if (flood == 14) {
+    if (flood == flood_start - 6) {
       press(HID_KEY_F);
     } 
     if (flood == 1) {
@@ -197,7 +199,7 @@ bool keyboard_update() {
   if (changed)
     update_pressed();
 
-  if (run_tests())
+  if (check_tests())
     return true;
 
   return changed;

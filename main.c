@@ -127,7 +127,7 @@ void hid_task(void)
 {
   // Poll very quickly - faster than our USB polling rate
   // (see TUD_HID_DESCRIPTOR in usb_descriptors.c)
-  const uint64_t interval_us = KEYBOARD_POLL_RATE_US/2 + 1;
+  const uint64_t interval_us = KEYBOARD_POLL_RATE_US - 1;
   static uint64_t start_us = 0;
 
   if (time_us_64() - start_us < interval_us) return; // not enough time
