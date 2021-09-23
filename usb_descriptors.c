@@ -34,7 +34,7 @@
  *   [MSB]         HID | MSC | CDC          [LSB]
  */
 #define _PID_MAP(itf, n)  ( (CFG_TUD_##itf) << (n) )
-#define USB_PID           (0x3000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
+#define USB_PID           (0x5000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
                            _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
 
 // TODO: CHANGE THIS
@@ -99,8 +99,8 @@ enum
 {
   //ITF_NUM_CDC = 0,
   //ITF_NUM_CDC_DATA,
-  ITF_NUM_VENDOR = 0,
-  ITF_NUM_HID,
+  ITF_NUM_HID = 0,
+  ITF_NUM_VENDOR,
   ITF_NUM_TOTAL
 };
 
@@ -133,19 +133,20 @@ enum
   #define EPNUM_VENDOR_OUT 3
 #endif
 
+/* THE ORDERING HERE HAS TO MATCH ITF_NUM ORDERING */
 uint8_t const desc_configuration[] =
 {
   // Config number, interface count, string index, total length, attribute, power in mA
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
 
+  // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
+  // (Glen): We modified the default from 5 to 0.125ms to try to get to a 8000hz polling rate
+  TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID, CFG_TUD_HID_EP_BUFSIZE, TUD_OPT_HIGH_SPEED ? KEYBOARD_POLL_RATE_US / 1000.0f : 1),
+
   #ifdef ENABLE_WEBUSB
   // Interface number, string index, EP Out & IN address, EP size
   TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, 0, EPNUM_VENDOR_OUT, 0x80 | EPNUM_VENDOR_IN, TUD_OPT_HIGH_SPEED ? 512 : 64),
   #endif
-
-  // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-  // (Glen): We modified the default from 5 to 0.125ms to try to get to a 8000hz polling rate
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID, CFG_TUD_HID_EP_BUFSIZE, TUD_OPT_HIGH_SPEED ? KEYBOARD_POLL_RATE_US / 1000.0f : 1),
 
   // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
   // TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, 0x81, 8, EPNUM_CDC_OUT, 0x80 | EPNUM_CDC_IN, TUD_OPT_HIGH_SPEED ? 512 : 64),
