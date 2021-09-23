@@ -124,6 +124,7 @@ void update_pressed() {
 
 bool speed_test() {
   static int flood = 0;
+  
   // Need to space the releases from the presses so that the operating system 
   // doesn't disregard the inputs (maybe it does its own debouncing)
   const int flood_start = 50;

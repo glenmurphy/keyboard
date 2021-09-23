@@ -1,4 +1,4 @@
-#include "pico/stdlib.h"
+#include "pico/stdlib.h" // bool, uint8_t
 
 #ifndef KEYBOARD_H_
 #define KEYBOARD_H_

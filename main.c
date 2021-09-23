@@ -121,7 +121,6 @@ static void send_hid_report()
   hid_queued = false;
 }
 
-// Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
 void hid_task(void)
 {
