@@ -30,3 +30,6 @@ target_include_directories(${PROJECTNAME} PRIVATE
                            ${CMAKE_CURRENT_LIST_DIR})
 
 pico_add_extra_outputs(${PROJECTNAME})
+
+pico_enable_stdio_usb(${PROJECTNAME} 0)
+pico_enable_stdio_uart(${PROJECTNAME} 1)

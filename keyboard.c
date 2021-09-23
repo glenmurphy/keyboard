@@ -1,3 +1,8 @@
+/**
+ * Keyboard handler for the Raspberry Pico; this is a simple implementation and
+ * doesn't bother with key matrix scanning because we have enough GPIO pins on 
+ * the Pico for what we need (a gaming keyboard)
+ */
 #include "keyboard.h"
 
 #include "pico/stdlib.h"
@@ -49,9 +54,9 @@ void keyboard_init() {
   memset(key_report, 0, KEYBOARD_REPORT_SIZE);
 
   // Codes from hid.h in tinyusb/src/class/hid
-  add_key(0, HID_KEY_R, HID_KEY_4);
-  add_key(1, HID_KEY_F, HID_KEY_ENTER);
-  add_key(2, HID_KEY_V, HID_KEY_BACKSPACE);
+  //add_key(0, HID_KEY_R, HID_KEY_4);
+  //add_key(1, HID_KEY_F, HID_KEY_ENTER);
+  //add_key(2, HID_KEY_V, HID_KEY_BACKSPACE);
 
   add_key(3, HID_KEY_ALT_RIGHT, NO_KEY);
   add_key(4, HID_KEY_PAGE_UP, NO_KEY);
@@ -124,7 +129,7 @@ void update_pressed() {
 
 bool speed_test() {
   static int flood = 0;
-  
+
   // Need to space the releases from the presses so that the operating system 
   // doesn't disregard the inputs (maybe it does its own debouncing)
   const int flood_start = 50;
