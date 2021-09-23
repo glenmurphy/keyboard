@@ -6,47 +6,46 @@
 #include "bsp/board.h" // for board_get_millis
 #include "tusb.h" // for keyboard keys
 
-#define NUM_KEYS 19
-#define DEBOUNCE_MS 12
-#define NO_KEY -1
+int key_codes[MAX_KEYS] = {0};
+int key_mod_codes[MAX_KEYS] = {0};
+int key_pins[MAX_KEYS] = {0};
 
-int key_codes[NUM_KEYS] = {0};
-int key_mod_codes[NUM_KEYS] = {0};
-int key_pins[NUM_KEYS] = {0};
-
-bool key_reported_state[NUM_KEYS];
-int key_reported_time[NUM_KEYS]; // time of last report
-bool key_hardware_state[NUM_KEYS]; // current state of hardware
-int key_current_edge[NUM_KEYS]; // 0: nothing, 1 - rising, -1: falling
+bool key_reported_state[MAX_KEYS];
+int key_reported_time[MAX_KEYS]; // time of last report
+bool key_hardware_state[MAX_KEYS]; // current state of hardware
+int key_current_edge[MAX_KEYS]; // 0: nothing, 1 - rising, -1: falling
 
 uint8_t key_report[KEYBOARD_REPORT_SIZE] = {0};
 
 int modifier_key = -1;
 int esc_key = -1;
 
+int total_keys = 0;
 int add_key(int pin, int key_code, int key_mod_code) {
-  static int add_index = 0;
+  if (total_keys >= MAX_KEYS) { 
+    return -1;
+  }
 
   gpio_init(pin);
   gpio_set_dir(pin, GPIO_IN);
   gpio_pull_up(pin);
 
-  key_codes[add_index] = key_code;
-  key_mod_codes[add_index] = key_mod_code;
-  key_pins[add_index] = pin;
+  key_codes[total_keys] = key_code;
+  key_mod_codes[total_keys] = key_mod_code;
+  key_pins[total_keys] = pin;
 
-  add_index++;
-  return add_index - 1;
+  total_keys++;
+  return total_keys - 1; // return the index of the key we just added
 }
 
 void keyboard_init() {
-  memset(key_codes, 0, NUM_KEYS);
-  memset(key_mod_codes, 0, NUM_KEYS);
-  memset(key_pins, 0, NUM_KEYS);
-  memset(key_reported_state, false, NUM_KEYS);
-  memset(key_reported_time, 0, NUM_KEYS);
-  memset(key_hardware_state, false, NUM_KEYS);
-  memset(key_current_edge, 0, NUM_KEYS);
+  memset(key_codes, 0, MAX_KEYS);
+  memset(key_mod_codes, 0, MAX_KEYS);
+  memset(key_pins, 0, MAX_KEYS);
+  memset(key_reported_state, false, MAX_KEYS);
+  memset(key_reported_time, 0, MAX_KEYS);
+  memset(key_hardware_state, false, MAX_KEYS);
+  memset(key_current_edge, 0, MAX_KEYS);
   memset(key_report, 0, KEYBOARD_REPORT_SIZE);
 
   // Codes from hid.h in tinyusb/src/class/hid
@@ -109,7 +108,7 @@ void release(int key_code) {
 void update_pressed() {
   bool modifier = key_reported_state[modifier_key];
 
-  for (int i = 0; i < NUM_KEYS; i++) {
+  for (int i = 0; i < total_keys; i++) {
     if (i == modifier_key)
       continue;
     
@@ -123,8 +122,10 @@ void update_pressed() {
   }
 }
 
-bool check_tests() {
+bool speed_test() {
   static int flood = 0;
+  // Need to space the releases from the presses so that the operating system 
+  // doesn't disregard the inputs (maybe it does its own debouncing)
   const int flood_start = 50;
   bool modifier = key_reported_state[modifier_key];
   
@@ -133,24 +134,18 @@ bool check_tests() {
   }
 
   if (flood > 0) {
-    if (flood == flood_start - 1) {
+    if (flood == flood_start - 1)
       press(HID_KEY_A);
-    } 
-    if (flood == flood_start - 2) {
+    if (flood == flood_start - 2)
       press(HID_KEY_B);
-    } 
-    if (flood == flood_start - 3) {
+    if (flood == flood_start - 3)
       press(HID_KEY_C);
-    } 
-    if (flood == flood_start - 4) {
+    if (flood == flood_start - 4)
       press(HID_KEY_D);
-    } 
-    if (flood == flood_start - 5) {
+    if (flood == flood_start - 5)
       press(HID_KEY_E);
-    } 
-    if (flood == flood_start - 6) {
+    if (flood == flood_start - 6)
       press(HID_KEY_F);
-    } 
     if (flood == 1) {
       release(HID_KEY_A);
       release(HID_KEY_B);
@@ -160,9 +155,10 @@ bool check_tests() {
       release(HID_KEY_F);
     } 
     flood--;
-    return true;
+    return true; // test was run, report has changed
   }
-  return false;
+  
+  return false; // test was not run
 }
 
 bool keyboard_update() {
@@ -171,7 +167,7 @@ bool keyboard_update() {
   bool changed = false;
 
   // Get and store the physical state of the hardware
-  for (int i = 0; i < NUM_KEYS; i++) {
+  for (int i = 0; i < total_keys; i++) {
     state = !gpio_get(key_pins[i]);
 
     if (state == key_hardware_state[i])
@@ -183,7 +179,7 @@ bool keyboard_update() {
   // For each key, if the hardware state is different than the last reported state
   // and greater than debounce tim has elapsed, report it and log that this frame
   // we have a rising or falling edge
-  for (int i = 0; i < NUM_KEYS; i++) {
+  for (int i = 0; i < total_keys; i++) {
     if (key_hardware_state[i] != key_reported_state[i] && time > key_reported_time[i] + DEBOUNCE_MS) {
       key_reported_state[i] = key_hardware_state[i];
       key_reported_time[i] = time;
@@ -199,8 +195,8 @@ bool keyboard_update() {
   if (changed)
     update_pressed();
 
-  if (check_tests())
-    return true;
+  if (speed_test())
+    changed = true;
 
   return changed;
 }

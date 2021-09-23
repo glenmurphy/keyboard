@@ -88,7 +88,7 @@ void tud_umount_cb(void)
 }
 
 // Invoked when usb bus is suspended
-// remote_wakeup_en : if host allow us  to perform remote wakeup
+// remote_wakeup_en : if host allow us to perform remote wakeup
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en)
 {
@@ -105,20 +105,20 @@ void tud_resume_cb(void)
 //--------------------------------------------------------------------+
 // USB HID
 //--------------------------------------------------------------------+
-bool queued = false;
+bool hid_queued = false;
 static void send_hid_report()
 {
   if (!tud_hid_ready()) {
-    queued = true;
+    hid_queued = true;
     return;
   }
 
-  uint8_t keycodes[KEYBOARD_REPORT_SIZE];
-  memcpy(keycodes, get_key_report(), KEYBOARD_REPORT_SIZE);
+  //uint8_t keycodes[KEYBOARD_REPORT_SIZE];
+  //memcpy(keycodes, get_key_report(), KEYBOARD_REPORT_SIZE);
 
   // use to avoid send multiple consecutive zero report for keyboard
-  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycodes);
-  queued = false;
+  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, get_key_report());
+  hid_queued = false;
 }
 
 // Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
@@ -134,7 +134,7 @@ void hid_task(void)
   start_us += interval_us;
 
   bool changed = keyboard_update();
-  if (!queued && !changed) return;
+  if (!hid_queued && !changed) return;
 
   // Remote wakeup
   if (tud_suspended()) {
@@ -189,13 +189,11 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 
       uint8_t const kbd_leds = buffer[0];
 
-      if (kbd_leds & KEYBOARD_LED_CAPSLOCK)
-      {
+      if (kbd_leds & KEYBOARD_LED_CAPSLOCK) {
         // Capslock On: disable blink, turn led on
         blink_interval_ms = 0;
         board_led_write(true);
-      }else
-      {
+      } else {
         // Caplocks Off: back to normal blink
         board_led_write(false);
         blink_interval_ms = BLINK_MOUNTED;
