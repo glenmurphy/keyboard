@@ -144,7 +144,6 @@ uint8_t const desc_configuration[] =
   // TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, 0x81, 8, EPNUM_CDC_OUT, 0x80 | EPNUM_CDC_IN, TUD_OPT_HIGH_SPEED ? 512 : 64),
 };
 
-/*
 #if TUD_OPT_HIGH_SPEED
 // Per USB specs: high speed capable device must report device_qualifier and other_speed_configuration
 
@@ -192,7 +191,6 @@ uint8_t const* tud_descriptor_other_speed_configuration_cb(uint8_t index)
 }
 
 #endif // highspeed
-*/
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
 // Application return pointer to descriptor
