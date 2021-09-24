@@ -143,7 +143,7 @@ uint8_t const desc_configuration[] =
   // (Glen): We modified the default from 5 to 0.125ms to try to get to a 8000hz polling rate
   TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID, CFG_TUD_HID_EP_BUFSIZE, TUD_OPT_HIGH_SPEED ? KEYBOARD_POLL_RATE_US / 1000.0f : 1),
 
-  #ifdef ENABLE_WEBUSB
+  #ifdef WEBUSB_ENABLE
   // Interface number, string index, EP Out & IN address, EP size
   TUD_VENDOR_DESCRIPTOR(ITF_NUM_VENDOR, 0, EPNUM_VENDOR_OUT, 0x80 | EPNUM_VENDOR_IN, TUD_OPT_HIGH_SPEED ? 512 : 64),
   #endif
@@ -152,7 +152,6 @@ uint8_t const desc_configuration[] =
   // TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, 0x81, 8, EPNUM_CDC_OUT, 0x80 | EPNUM_CDC_IN, TUD_OPT_HIGH_SPEED ? 512 : 64),
 };
 
-/*
 #if TUD_OPT_HIGH_SPEED
 // Per USB specs: high speed capable device must report device_qualifier and other_speed_configuration
 
@@ -200,7 +199,6 @@ uint8_t const* tud_descriptor_other_speed_configuration_cb(uint8_t index)
 }
 
 #endif // highspeed
-*/
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
 // Application return pointer to descriptor

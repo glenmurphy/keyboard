@@ -25,7 +25,7 @@
 #ifndef USB_DESCRIPTORS_H_
 #define USB_DESCRIPTORS_H_
 
-extern uint8_t const desc_ms_os_20[]; // CDC
+extern uint8_t const desc_ms_os_20[];
 
 enum
 {
@@ -34,8 +34,8 @@ enum
   REPORT_ID_CONSUMER_CONTROL,
   REPORT_ID_GAMEPAD,
   REPORT_ID_COUNT,
-  VENDOR_REQUEST_WEBUSB, // CDC
-  VENDOR_REQUEST_MICROSOFT  // CDC
+  VENDOR_REQUEST_WEBUSB,
+  VENDOR_REQUEST_MICROSOFT
 };
 
 #endif /* USB_DESCRIPTORS_H_ */

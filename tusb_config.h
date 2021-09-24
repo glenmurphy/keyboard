@@ -100,8 +100,8 @@
 #define CFG_TUD_MIDI              0
 #define CFG_TUD_CDC               0
 
-#define ENABLE_WEBUSB
-#ifdef ENABLE_WEBUSB
+#define WEBUSB_ENABLE
+#ifdef WEBUSB_ENABLE
 #define CFG_TUD_VENDOR            1
 #else
 #define CFG_TUD_VENDOR            0

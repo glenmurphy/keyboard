@@ -53,10 +53,10 @@ void keyboard_init() {
   memset(key_current_edge, 0, MAX_KEYS);
   memset(key_report, 0, KEYBOARD_REPORT_SIZE);
 
-  // Codes from hid.h in tinyusb/src/class/hid
-  //add_key(0, HID_KEY_R, HID_KEY_4);
-  //add_key(1, HID_KEY_F, HID_KEY_ENTER);
-  //add_key(2, HID_KEY_V, HID_KEY_BACKSPACE);
+  // Codes from tinyusb/src/class/hid/hid.h
+  add_key(0, HID_KEY_R, HID_KEY_4);
+  add_key(1, HID_KEY_F, HID_KEY_ENTER);
+  add_key(2, HID_KEY_V, HID_KEY_BACKSPACE);
 
   add_key(3, HID_KEY_ALT_RIGHT, NO_KEY);
   add_key(4, HID_KEY_PAGE_UP, NO_KEY);

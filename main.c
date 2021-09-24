@@ -81,7 +81,7 @@ int main(void)
     
     hid_task();
 
-    #ifdef ENABLE_WEBUSB
+    #ifdef WEBUSB_ENABLE
     //cdc_task();
     webserial_task();
     #endif
@@ -226,22 +226,9 @@ void echo_all(uint8_t buf[], uint32_t count)
   {
     tud_vendor_write(buf, count);
   }
-
-  // echo to cdc
-  /*
-  if ( tud_cdc_connected() )
-  {
-    for(uint32_t i=0; i<count; i++)
-    {
-      tud_cdc_write_char(buf[i]);
-
-      if ( buf[i] == '\r' ) tud_cdc_write_char('\n');
-    }
-    tud_cdc_write_flush();
-  }
-  */
 }
 
+#ifdef WEBUSB_ENABLE
 //--------------------------------------------------------------------+
 // WebUSB use vendor class
 //--------------------------------------------------------------------+
@@ -323,47 +310,8 @@ void webserial_task(void)
     echo_all(buf, count);
   }
 }
-
-//--------------------------------------------------------------------+
-// USB CDC
-//--------------------------------------------------------------------+
-/*
-void cdc_task(void)
-{
-  if ( tud_cdc_connected() )
-  {
-    // connected and there are data available
-    if ( tud_cdc_available() )
-    {
-      uint8_t buf[64];
-      uint32_t count = tud_cdc_read(buf, sizeof(buf));
-
-      // echo back to both web serial and cdc
-      echo_all(buf, count);
-    }
-  }
-}
-
-// Invoked when cdc when line state changed e.g connected/disconnected
-void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
-{
-  (void) itf;
-
-  // connected
-  if ( dtr && rts )
-  {
-    // print initial message when connected
-    tud_cdc_write_str("\r\nTinyUSB WebUSB device example\r\n");
-  }
-}
-
-// Invoked when CDC interface received data from host
-void tud_cdc_rx_cb(uint8_t itf)
-{
-  (void) itf;
-}
 #endif
-*/
+
 
 //--------------------------------------------------------------------+
 // BLINKING TASK
