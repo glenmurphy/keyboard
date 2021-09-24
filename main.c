@@ -80,11 +80,7 @@ int main(void)
     tud_task(); // tinyusb device task
     
     hid_task();
-
-    #ifdef WEBUSB_ENABLE
-    //cdc_task();
     webserial_task();
-    #endif
     
     led_blinking_task();
   }
@@ -228,7 +224,6 @@ void echo_all(uint8_t buf[], uint32_t count)
   }
 }
 
-#ifdef WEBUSB_ENABLE
 //--------------------------------------------------------------------+
 // WebUSB use vendor class
 //--------------------------------------------------------------------+
@@ -310,8 +305,6 @@ void webserial_task(void)
     echo_all(buf, count);
   }
 }
-#endif
-
 
 //--------------------------------------------------------------------+
 // BLINKING TASK
