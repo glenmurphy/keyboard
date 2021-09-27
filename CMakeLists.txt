@@ -7,6 +7,7 @@ project(${PROJECTNAME} VERSION 1.0.0)
 add_executable(${PROJECTNAME}
                main.c
                usb_descriptors.c
+               led.c
                keyboard.c)
 
 pico_sdk_init()
