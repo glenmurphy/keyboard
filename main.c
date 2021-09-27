@@ -31,25 +31,11 @@
 #include "usb_descriptors.h"
 
 #include "keyboard.h"
+#include "led.h"
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
-
-/* Blink pattern
- * - 250 ms  : device not mounted
- * - 1000 ms : device mounted
- * - 2500 ms : device is suspended
- */
-enum  {
-  BLINK_NOT_MOUNTED = 50,
-  BLINK_MOUNTED = 500,
-  BLINK_SUSPENDED = 2500,
-  BLINK_ALWAYS_ON = 5000,
-};
-
-static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
-
 // WebUSB stuff
 #define URL "example.tinyusb.org/webusb-serial/"
 const tusb_desc_webusb_url_t desc_url =
@@ -62,8 +48,6 @@ const tusb_desc_webusb_url_t desc_url =
 static bool web_serial_connected = false;
 
 //------------- prototypes -------------//
-void led_blinking_task(void);
-void cdc_task(void);
 void webserial_task(void);
 void hid_task(void);
 
@@ -73,6 +57,7 @@ int main(void)
   board_init();
   tusb_init();
   keyboard_init();
+  led_init();
     
   while (1)
   {
@@ -81,7 +66,7 @@ int main(void)
     hid_task();
     webserial_task();
     
-    led_blinking_task();
+    led_update();
   }
 
   return 0;
@@ -94,13 +79,13 @@ int main(void)
 // Invoked when device is mounted
 void tud_mount_cb(void)
 {
-  blink_interval_ms = BLINK_MOUNTED;
+  led_solid(true);
 }
 
 // Invoked when device is unmounted
 void tud_umount_cb(void)
 {
-  blink_interval_ms = BLINK_NOT_MOUNTED;
+  led_blink(LED_BLINK_NOT_MOUNTED);
 }
 
 // Invoked when usb bus is suspended
@@ -109,14 +94,15 @@ void tud_umount_cb(void)
 void tud_suspend_cb(bool remote_wakeup_en)
 {
   (void) remote_wakeup_en;
-  blink_interval_ms = BLINK_SUSPENDED;
+  led_blink(LED_BLINK_SUSPENDED);
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void)
 {
-  blink_interval_ms = BLINK_MOUNTED;
+  led_solid(true);
 }
+
 //--------------------------------------------------------------------+
 // HID
 //--------------------------------------------------------------------+
@@ -187,12 +173,10 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 
       if (kbd_leds & KEYBOARD_LED_CAPSLOCK) {
         // Capslock On: disable blink, turn led on
-        blink_interval_ms = 0;
-        board_led_write(true);
+        led_solid(true);
       } else {
         // Caplocks Off: back to normal blink
-        board_led_write(false);
-        blink_interval_ms = BLINK_MOUNTED;
+        led_blink(LED_BLINK_MOUNTED);
       }
     }
   }
@@ -269,12 +253,10 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_requ
 
         // Always lit LED if connected
         if ( web_serial_connected ) {
-          board_led_write(true);
-          blink_interval_ms = 100;
-
+          //led_solid(true);
           tud_vendor_write_str("\r\nTinyUSB WebUSB device example\r\n");
         } else {
-          blink_interval_ms = 50;
+          //led_blink(LED_BLINK_MOUNTED);
         }
 
         // response with status OK
@@ -303,23 +285,4 @@ void webserial_task(void)
     // echo back to both web serial and cdc
     echo_all(buf, count);
   }
-}
-
-//--------------------------------------------------------------------+
-// BLINKING TASK
-//--------------------------------------------------------------------+
-void led_blinking_task(void)
-{
-  static uint32_t start_ms = 0;
-  static bool led_state = false;
-
-  // blink is disabled
-  if (!blink_interval_ms) return;
-
-  // Blink every interval ms
-  if ( board_millis() - start_ms < blink_interval_ms) return; // not enough time
-  start_ms += blink_interval_ms;
-
-  board_led_write(led_state);
-  led_state = 1 - led_state; // toggle
 }
