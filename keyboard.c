@@ -11,47 +11,42 @@
 #include "bsp/board.h" // for board_get_millis
 #include "tusb.h" // for keyboard keys
 
-int key_codes[MAX_KEYS] = {0};
-int key_mod_codes[MAX_KEYS] = {0};
-int key_pins[MAX_KEYS] = {0};
+typedef struct {
+  bool watched;
+  
+  bool state;
+  bool reported_state;
+  int reported_time;
+  int current_edge; // 0: nothing, 1 - rising, -1: falling
 
-bool key_reported_state[MAX_KEYS];
-int key_reported_time[MAX_KEYS]; // time of last report
-bool key_hardware_state[MAX_KEYS]; // current state of hardware
-int key_current_edge[MAX_KEYS]; // 0: nothing, 1 - rising, -1: falling
+  int keycode;
+  int keycode_alt;
+} Pin;
 
+Pin pins[MAX_PINS];
 uint8_t key_report[KEYBOARD_REPORT_SIZE] = {0};
 
-int modifier_key = -1;
-int esc_key = -1;
+#define MODIFIER_PIN 12
+#define ESC_PIN 16
 
-int total_keys = 0;
-int add_key(int pin, int key_code, int key_mod_code) {
-  if (total_keys >= MAX_KEYS) { 
-    return -1;
-  }
-
+int add_key(int pin, int key_code, int keycode_alt) {
   gpio_init(pin);
   gpio_set_dir(pin, GPIO_IN);
   gpio_pull_up(pin);
 
-  key_codes[total_keys] = key_code;
-  key_mod_codes[total_keys] = key_mod_code;
-  key_pins[total_keys] = pin;
-
-  total_keys++;
-  return total_keys - 1; // return the index of the key we just added
+  pins[pin].watched = true;
+  pins[pin].state = false;
+  pins[pin].reported_state = false;
+  pins[pin].reported_time = 0;
+  pins[pin].current_edge = 0;
+  pins[pin].keycode = key_code;
+  pins[pin].keycode_alt = keycode_alt;
 }
 
 void keyboard_init() {
-  memset(key_codes, 0, MAX_KEYS);
-  memset(key_mod_codes, 0, MAX_KEYS);
-  memset(key_pins, 0, MAX_KEYS);
-  memset(key_reported_state, false, MAX_KEYS);
-  memset(key_reported_time, 0, MAX_KEYS);
-  memset(key_hardware_state, false, MAX_KEYS);
-  memset(key_current_edge, 0, MAX_KEYS);
-  memset(key_report, 0, KEYBOARD_REPORT_SIZE);
+  for (int i = 0; i < MAX_PINS; i++) {
+    pins[i].watched = false;
+  }
 
   // Codes from tinyusb/src/class/hid/hid.h
   add_key(0, HID_KEY_R, HID_KEY_4);
@@ -73,14 +68,14 @@ void keyboard_init() {
   add_key(14, HID_KEY_A, HID_KEY_F1);
   add_key(15, HID_KEY_Z, HID_KEY_F4);
 
-  esc_key = add_key(16, HID_KEY_ESCAPE, NO_KEY);
+  add_key(ESC_PIN, HID_KEY_ESCAPE, NO_KEY);
   add_key(17, HID_KEY_TAB, NO_KEY);
   add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
 
-  modifier_key = add_key(12, NO_KEY, NO_KEY); // special modifier
+  add_key(MODIFIER_PIN, NO_KEY, NO_KEY); // special modifier
 }
 
-void press(int key_code) {
+void key_press(int key_code) {
   if (key_code == NO_KEY) return;
 
   int index = -1;
@@ -99,7 +94,7 @@ void press(int key_code) {
     key_report[index] = key_code;
 }
 
-void release(int key_code) {
+void key_release(int key_code) {
   if (key_code == NO_KEY) return;
 
   for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
@@ -110,55 +105,55 @@ void release(int key_code) {
   }
 }
 
-void update_pressed() {
-  bool modifier = key_reported_state[modifier_key];
+void keyboard_update_pressed() {
+  bool modifier = pins[MODIFIER_PIN].reported_state;
 
-  for (int i = 0; i < total_keys; i++) {
-    if (i == modifier_key)
+  for (int i = 0; i < MAX_PINS; i++) {
+    if (!pins[i].watched) continue;
+
+    if (i == MODIFIER_PIN)
       continue;
     
-    if (key_current_edge[i] == -1) {
-      press(modifier ? key_mod_codes[i] : key_codes[i]);
-    } else if (key_current_edge[i] == 1) {
+    if (pins[i].current_edge == -1) {
+      key_press(modifier ? pins[i].keycode_alt : pins[i].keycode);
+    } else if (pins[i].current_edge == 1) {
       // Releasing both codes is cheap, and doesn't have side effects if do it when we're not down
-      release(key_codes[i]);
-      release(key_mod_codes[i]);
+      key_release(pins[i].keycode);
+      key_release(pins[i].keycode_alt);
     }
   }
 }
 
-bool speed_test() {
+bool keyboard_speed_test() {
   static int flood = 0;
 
   // Need to space the releases from the presses so that the operating system 
   // doesn't disregard the inputs (maybe it does its own debouncing)
   const int flood_start = 50;
-  bool modifier = key_reported_state[modifier_key];
-  
-  if (key_reported_state[modifier_key] && key_reported_state[esc_key]) {
+  if (pins[MODIFIER_PIN].reported_state && pins[ESC_PIN].reported_state) {
     flood = flood_start;
   }
 
   if (flood > 0) {
     if (flood == flood_start - 1)
-      press(HID_KEY_A);
+      key_press(HID_KEY_A);
     if (flood == flood_start - 2)
-      press(HID_KEY_B);
+      key_press(HID_KEY_B);
     if (flood == flood_start - 3)
-      press(HID_KEY_C);
+      key_press(HID_KEY_C);
     if (flood == flood_start - 4)
-      press(HID_KEY_D);
+      key_press(HID_KEY_D);
     if (flood == flood_start - 5)
-      press(HID_KEY_E);
+      key_press(HID_KEY_E);
     if (flood == flood_start - 6)
-      press(HID_KEY_F);
+      key_press(HID_KEY_F);
     if (flood == 1) {
-      release(HID_KEY_A);
-      release(HID_KEY_B);
-      release(HID_KEY_C);
-      release(HID_KEY_D);
-      release(HID_KEY_E);
-      release(HID_KEY_F);
+      key_release(HID_KEY_A);
+      key_release(HID_KEY_B);
+      key_release(HID_KEY_C);
+      key_release(HID_KEY_D);
+      key_release(HID_KEY_E);
+      key_release(HID_KEY_F);
     } 
     flood--;
     return true; // test was run, report has changed
@@ -173,46 +168,42 @@ bool keyboard_update() {
   bool changed = false;
 
   // Get and store the physical state of the hardware
-  for (int i = 0; i < total_keys; i++) {
-    state = !gpio_get(key_pins[i]);
+  for (int i = 0; i < MAX_PINS; i++) {
+    if (!pins[i].watched) continue;
 
-    if (state == key_hardware_state[i])
-      continue;
+    state = !gpio_get(i);
+
+    if (state == pins[i].state) 
+      continue; // no change
     
-    key_hardware_state[i] = state;
+    pins[i].state = state;
   }
 
   // For each key, if the hardware state is different than the last reported state
-  // and greater than debounce tim has elapsed, report it and log that this frame
+  // and greater than debounce time has elapsed, report it and log that this frame
   // we have a rising or falling edge
-  for (int i = 0; i < total_keys; i++) {
-    if (key_hardware_state[i] != key_reported_state[i] && time > key_reported_time[i] + DEBOUNCE_MS) {
-      key_reported_state[i] = key_hardware_state[i];
-      key_reported_time[i] = time;
-      key_current_edge[i] = key_reported_state[i] ? -1 : 1;
+  for (int i = 0; i < MAX_PINS; i++) {
+    if (!pins[i].watched) continue;
+
+    if (pins[i].state != pins[i].reported_state && time > pins[i].reported_time + DEBOUNCE_MS) {
+      pins[i].reported_state = pins[i].state;
+      pins[i].reported_time = time;
+      pins[i].current_edge = pins[i].reported_state ? -1 : 1;
       changed = true;
     } else {
-      if (key_current_edge[i] != 0)
+      if (pins[i].current_edge != 0)
         changed = true;
-      key_current_edge[i] = 0;
+      pins[i].current_edge = 0;
     }
   }
 
   if (changed)
-    update_pressed();
+    keyboard_update_pressed();
 
-  if (speed_test())
+  if (keyboard_speed_test())
     changed = true;
 
   return changed;
-}
-
-bool key_is_rising(int i) { // button released
-  return (key_current_edge[i] == 1);
-}
-
-bool key_is_falling(int i) { // button pressed (falling to ground)
-  return (key_current_edge[i] == -1);
 }
 
 uint8_t * get_key_report() {
