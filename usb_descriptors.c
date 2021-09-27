@@ -146,6 +146,8 @@ uint8_t const desc_configuration[] =
 
 #if TUD_OPT_HIGH_SPEED
 // Per USB specs: high speed capable device must report device_qualifier and other_speed_configuration
+// (glen): it's unclear if we need this, as many of the other examples and projects don't have it,
+// and things seem to work without it, so re-evaluate later
 
 // other speed configuration
 uint8_t desc_other_speed_config[CONFIG_TOTAL_LEN];
