@@ -95,7 +95,7 @@ void keyboard_set_default() {
 
   set_key(16, HID_KEY_CONTROL_LEFT, HID_KEY_VOLUME_DOWN);
   set_key(18, HID_KEY_ALT_LEFT, HID_KEY_VOLUME_UP);
-  set_key(17, HID_KEY_SPACE, HID_KEY_PERIOD);
+  set_key(17, HID_KEY_SPACE, HID_KEY_MUTE);
 
   set_key(19, HID_KEY_V, HID_KEY_SLASH);
   set_key(20, HID_KEY_F, HID_KEY_ENTER);

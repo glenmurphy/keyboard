@@ -116,9 +116,50 @@ static void send_hid_report()
     return;
   }
 
-  // use to avoid send multiple consecutive zero report for keyboard
-  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, get_key_report());
+  uint8_t * report = get_key_report();
+  tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, report);
+
   hid_queued = false;
+}
+
+static void send_media_report()
+{
+  static uint16_t media_key_held = 0;
+  uint16_t media_key = 0;
+  uint8_t * report = get_key_report();
+
+  for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
+    if (report[i] == HID_KEY_VOLUME_UP)
+      media_key = HID_USAGE_CONSUMER_VOLUME_INCREMENT;
+    else if (report[i] == HID_KEY_VOLUME_DOWN)
+      media_key = HID_USAGE_CONSUMER_VOLUME_DECREMENT; 
+    else if (report[i] == HID_KEY_MUTE)
+      media_key = HID_USAGE_CONSUMER_MUTE;
+  }
+  
+  if (media_key != 0 && media_key != media_key_held) {
+    board_delay(2); // space from previous report .. because
+    media_key_held = media_key;
+    tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &media_key, 2);
+  } else if (media_key == 0 && media_key_held != 0){
+    board_delay(2); // space from previous report .. because
+    media_key_held = 0;
+    uint16_t empty_key = 0;
+    tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &empty_key, 2);
+  }
+}
+
+void send_webusb_report() {
+  if (!web_serial_connected)
+    return;
+  
+  uint8_t message[7];
+  message[0] = 'r';
+  uint8_t * report = get_key_report(); // need to replace this with a pins-down map
+  for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
+    message[i + 1] = report[i];
+  }
+  tud_vendor_write(message, 7);
 }
 
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
@@ -143,6 +184,8 @@ void hid_task(void)
   } else {
     // Send the 1st of report chain, the rest will be sent by tud_hid_report_complete_cb()
     send_hid_report();
+    send_media_report();
+    send_webusb_report();
   }
 }
 
@@ -253,10 +296,10 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_requ
 
         // Always lit LED if connected
         if ( web_serial_connected ) {
-          //led_solid(true);
+          led_solid(true);
           tud_vendor_write_str("\r\nTinyUSB WebUSB device example\r\n");
         } else {
-          //led_blink(LED_BLINK_MOUNTED);
+          led_blink(LED_BLINK_MOUNTED);
         }
 
         // response with status OK
@@ -272,8 +315,8 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_requ
 
 void webserial_task(void)
 {
-  //if (!web_serial_connected)
-  //  return;
+  if (!web_serial_connected)
+    return;
 
   if (!tud_vendor_available())
     return;
@@ -300,7 +343,7 @@ void webserial_task(void)
 
   // echo_all(config, MAX_PINS * 3);
   // Need to split this across multiple packets, as the packets are limited to 64 bytes
-/*
+  /*
   switch(buf[0]) {
     case 'c':
       break;
