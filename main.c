@@ -56,6 +56,8 @@ int main(void)
 {
   board_init();
   tusb_init();
+
+  //set_sys_clock_khz(200000, true);
   keyboard_init();
   led_init();
     
@@ -122,9 +124,9 @@ static void send_hid_report()
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
 void hid_task(void)
 {
-  // Poll very quickly - faster than our USB polling rate
-  // (see TUD_HID_DESCRIPTOR in usb_descriptors.c)
-  const uint64_t interval_us = KEYBOARD_POLL_RATE_US - 1;
+  // Poll very quickly - faster than our USB polling rate so we always have fresh data
+  // available (see TUD_HID_DESCRIPTOR in usb_descriptors.c)
+  const uint64_t interval_us = KEYBOARD_SCAN_RATE_US;
   static uint64_t start_us = 0;
 
   if (time_us_64() - start_us < interval_us) return; // not enough time
@@ -200,10 +202,8 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 // send characters to both CDC and WebUSB
 void echo_all(uint8_t buf[], uint32_t count)
 {
-  // echo to web serial
-  if ( web_serial_connected )
-  {
-    tud_vendor_write(buf, count);
+  if ( web_serial_connected ) {
+    
   }
 }
 
@@ -278,11 +278,34 @@ void webserial_task(void)
   if (!tud_vendor_available())
     return;
 
-  uint8_t buf[64];
+  uint8_t buf[128]; // need to check this
   uint32_t count = tud_vendor_read(buf, sizeof(buf));
   printf("read: %d", count);
-  if (count > 0) {
-    // echo back to both web serial and cdc
-    echo_all(buf, count);
+
+  if (count == 0)
+    return;
+
+  if(buf[0] == 'c') {
+    // Read the config and send
+
+    uint8_t message[64];
+    message[0] = 'c';
+    uint8_t size = keyboard_config_read(message + 1, sizeof(message) - 1);
+    tud_vendor_write(message, size + 1);
+
+  } else if (buf[0] == 's') {
+    // Set the keymap
+    keyboard_config_set(buf + 1, count - 1);
   }
+
+  // echo_all(config, MAX_PINS * 3);
+  // Need to split this across multiple packets, as the packets are limited to 64 bytes
+/*
+  switch(buf[0]) {
+    case 'c':
+      break;
+    default:
+      echo_all(buf, count);
+  }
+  */ 
 }

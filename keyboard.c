@@ -7,13 +7,14 @@
 
 #include "pico/stdlib.h"
 #include <string.h> // for memset
+#include <stdlib.h> // malloc
 
 #include "bsp/board.h" // for board_get_millis
 #include "tusb.h" // for keyboard keys
 
 typedef struct {
   bool watched;
-  
+
   bool state;
   bool reported_state;
   int reported_time;
@@ -24,15 +25,39 @@ typedef struct {
 } Pin;
 
 Pin pins[MAX_PINS];
-uint8_t key_report[KEYBOARD_REPORT_SIZE] = {0};
+uint8_t key_report[KEYBOARD_REPORT_SIZE];
 
-#define MODIFIER_PIN 12
-#define ESC_PIN 16
+#ifdef BOARD003
+  bool keyboard_pin_valid(int pin) {
+    return (pin >= 0 && pin < MAX_PINS);
+  }
+#else
+  bool keyboard_pin_valid(int i) {
+    return (i == 0 || i == 5);
+  }
+#endif
 
-int add_key(int pin, int key_code, int keycode_alt) {
+int modifier_pin = NO_PIN;
+
+void set_key(int pin, int key_code, int keycode_alt) {
+  if (keyboard_pin_valid(pin) == false) {
+    return;
+  }
+  if (key_code == HID_KEY_NONE && keycode_alt == HID_KEY_NONE) {
+    pins[pin].watched = false;
+    if (modifier_pin == pin)
+      modifier_pin = NO_PIN;
+
+    return;
+  }
+
   gpio_init(pin);
   gpio_set_dir(pin, GPIO_IN);
   gpio_pull_up(pin);
+
+  if (key_code == SPECIAL_KEY_MOD) {
+    modifier_pin = pin;
+  }
 
   pins[pin].watched = true;
   pins[pin].state = false;
@@ -43,40 +68,85 @@ int add_key(int pin, int key_code, int keycode_alt) {
   pins[pin].keycode_alt = keycode_alt;
 }
 
+void keyboard_set_default() {
+#ifdef BOARD003
+  // Codes from tinyusb/src/class/hid/hid.h
+  // https://github.com/hathach/tinyusb/blob/master/src/class/hid/hid.h
+  set_key(0, HID_KEY_ESCAPE, SPECIAL_KEY_BENCHMARK);
+  set_key(1, HID_KEY_TAB, HID_KEY_NONE);
+  set_key(2, HID_KEY_SHIFT_LEFT, HID_KEY_NONE);
+
+  //set_key(3, HID_KEY_NONE, HID_KEY_NONE);
+  set_key(4, HID_KEY_Q, HID_KEY_1);
+  set_key(5, HID_KEY_A, HID_KEY_F1);
+  set_key(6, HID_KEY_Z, HID_KEY_F4);
+
+  //set_key(7, HID_KEY_NONE, HID_KEY_NONE);
+  set_key(8, HID_KEY_W, HID_KEY_2);
+  set_key(9, HID_KEY_S, HID_KEY_F2);
+  set_key(10, HID_KEY_X, HID_KEY_F5);
+
+  set_key(11, SPECIAL_KEY_MOD, HID_KEY_NONE); // special modifier
+
+  //set_key(12, HID_KEY_NONE, HID_KEY_NONE);
+  set_key(13, HID_KEY_E, HID_KEY_3);
+  set_key(14, HID_KEY_D, HID_KEY_F3);
+  set_key(15, HID_KEY_C, HID_KEY_F6);
+
+  set_key(16, HID_KEY_CONTROL_LEFT, HID_KEY_VOLUME_DOWN);
+  set_key(18, HID_KEY_ALT_LEFT, HID_KEY_VOLUME_UP);
+  set_key(17, HID_KEY_SPACE, HID_KEY_PERIOD);
+
+  set_key(19, HID_KEY_V, HID_KEY_SLASH);
+  set_key(20, HID_KEY_F, HID_KEY_ENTER);
+  set_key(21, HID_KEY_R, HID_KEY_4);
+#endif
+}
+
 void keyboard_init() {
   for (int i = 0; i < MAX_PINS; i++) {
     pins[i].watched = false;
+    pins[i].keycode = 0;
+    pins[i].keycode_alt = 0;
   }
 
-  // Codes from tinyusb/src/class/hid/hid.h
-  add_key(0, HID_KEY_R, HID_KEY_4);
-  add_key(1, HID_KEY_F, HID_KEY_ENTER);
-  add_key(2, HID_KEY_V, HID_KEY_BACKSPACE);
+  keyboard_set_default();
 
-  add_key(3, HID_KEY_ALT_RIGHT, NO_KEY);
-  add_key(4, HID_KEY_PAGE_UP, NO_KEY);
-  add_key(5, HID_KEY_E, HID_KEY_3);
-  add_key(6, HID_KEY_D, HID_KEY_F3);
-  add_key(7, HID_KEY_C, HID_KEY_F6);
-  add_key(8, HID_KEY_SPACE, NO_KEY);
-  add_key(9, HID_KEY_W, HID_KEY_2);
+  // This is more for validation/testing than anything else - will remove eventually
+  uint8_t config[128];
+  uint8_t len = keyboard_config_read(config, sizeof(config));
+  keyboard_config_set(config, len);
+}
 
-  add_key(10, HID_KEY_S, HID_KEY_F2);
-  add_key(11, HID_KEY_X, HID_KEY_F5);
+int keyboard_config_read(uint8_t config[], uint8_t len) {
+  memset(config, 0, len);
 
-  add_key(13, HID_KEY_Q, HID_KEY_1);
-  add_key(14, HID_KEY_A, HID_KEY_F1);
-  add_key(15, HID_KEY_Z, HID_KEY_F4);
+  int index = 0;
+  for (int i = 0; i < MAX_PINS && index < len; i++) {
+    if (!pins[i].watched)
+      continue;
 
-  add_key(ESC_PIN, HID_KEY_ESCAPE, NO_KEY);
-  add_key(17, HID_KEY_TAB, NO_KEY);
-  add_key(18, HID_KEY_SHIFT_LEFT, NO_KEY);
+    config[index + 0] = i;
+    config[index + 1] = pins[i].keycode;
+    config[index + 2] = pins[i].keycode_alt;
+    index += 3;
+  }
 
-  add_key(MODIFIER_PIN, NO_KEY, NO_KEY); // special modifier
+  return index;
+}
+
+void keyboard_config_set(uint8_t config[], uint8_t len) {
+  for (int index = 0; index < len; index += 3) {
+    int pin = config[index];
+    int key_code = config[index + 1];
+    int keycode_alt = config[index + 2];
+
+    set_key(pin, key_code, keycode_alt);
+  }
 }
 
 void key_press(int key_code) {
-  if (key_code == NO_KEY) return;
+  if (key_code == HID_KEY_NONE) return;
 
   int index = -1;
   for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
@@ -95,7 +165,7 @@ void key_press(int key_code) {
 }
 
 void key_release(int key_code) {
-  if (key_code == NO_KEY) return;
+  if (key_code == HID_KEY_NONE) return;
 
   for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
     if (key_report[i] == key_code) {
@@ -105,13 +175,20 @@ void key_release(int key_code) {
   }
 }
 
+bool modifier_state() {
+  if (modifier_pin == NO_PIN)
+    return false;
+
+  return pins[modifier_pin].reported_state;
+}
+
 void keyboard_update_pressed() {
-  bool modifier = pins[MODIFIER_PIN].reported_state;
+  bool modifier = modifier_state();
 
   for (int i = 0; i < MAX_PINS; i++) {
     if (!pins[i].watched) continue;
 
-    if (i == MODIFIER_PIN)
+    if (pins[i].keycode == SPECIAL_KEY_MOD)
       continue;
     
     if (pins[i].current_edge == -1) {
@@ -130,7 +207,7 @@ bool keyboard_speed_test() {
   // Need to space the releases from the presses so that the operating system 
   // doesn't disregard the inputs (maybe it does its own debouncing)
   const int flood_start = 50;
-  if (pins[MODIFIER_PIN].reported_state && pins[ESC_PIN].reported_state) {
+  if (pins[modifier_pin].reported_state && pins[0].reported_state) {
     flood = flood_start;
   }
 
@@ -186,13 +263,18 @@ bool keyboard_update() {
     if (!pins[i].watched) continue;
 
     if (pins[i].state != pins[i].reported_state && time > pins[i].reported_time + DEBOUNCE_MS) {
+      // If the pin is in a different state to what was reported, and we're after the debounce time,
+      // change the state of the switch
       pins[i].reported_state = pins[i].state;
       pins[i].reported_time = time;
       pins[i].current_edge = pins[i].reported_state ? -1 : 1;
       changed = true;
-    } else {
-      if (pins[i].current_edge != 0)
-        changed = true;
+    } else if (pins[i].state != pins[i].reported_state && time > pins[i].reported_time + DEBOUNCE_MS) {
+      // Otherwise if the pin has changed and we're in the debounce time, extend the debounce time
+      pins[i].reported_time = time;
+    } else if (pins[i].current_edge != 0) {
+      // Otherwise if the pin hasn't changed, but did change last frame, reset the edge
+      changed = true;
       pins[i].current_edge = 0;
     }
   }

@@ -3,13 +3,29 @@
 #ifndef KEYBOARD_H_
 #define KEYBOARD_H_
 
-#define MAX_PINS 30
+#define BOARD003
 
-#define DEBOUNCE_MS 8
+#ifdef BOARD003
+  #define MAX_PINS 30  
+#else
+  #define MAX_PINS 5
+#endif
+
+// Debounce is 'settling time' for the keypress, so a noisy key will take longer
+#define DEBOUNCE_MS 10
+
+// TODO: Figure out NKRO!
 #define KEYBOARD_REPORT_SIZE 6
-#define KEYBOARD_POLL_RATE_US 125
+#define KEYBOARD_SCAN_RATE_US 125
 
-#define NO_KEY -1
+#define SPECIAL_KEY_MOD 0xfe
+#define SPECIAL_KEY_BENCHMARK 0xfd
+#define NO_PIN -1
+
+bool keyboard_pin_valid(int i);
+
+int keyboard_config_read(uint8_t config[], uint8_t len);
+void keyboard_config_set(uint8_t config[], uint8_t len);
 
 void keyboard_init();
 bool keyboard_update();
