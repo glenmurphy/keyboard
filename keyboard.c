@@ -119,20 +119,26 @@ void keyboard_config_reset() {
   keyboard_config_flash_save();
 }
 
-int keyboard_config_read(uint8_t config[], uint8_t len) {
-  memset(config, 0, len);
+int min(int a, int b) {
+  return (a < b) ? a : b;
+}
 
-  for (int i = 0; i < KEYS; i++) {
+int keyboard_config_read(uint8_t config[], uint8_t len) {
+  int size = min(len, KEYS * KEY_CONFIG_SIZE); // stops overflows
+
+  for (int i = 0; i < size / 3; i++) {
     config[i * KEY_CONFIG_SIZE + 0] = keys[i].pin;
     config[i * KEY_CONFIG_SIZE + 1] = keys[i].keycode;
     config[i * KEY_CONFIG_SIZE + 2] = keys[i].keycode_alt;
   }
 
-  return KEYS * KEY_CONFIG_SIZE;
+  return size;
 }
 
 void keyboard_config_set(uint8_t config[], uint8_t len) {
-  for (int index = 0; index < len; index += KEY_CONFIG_SIZE) {
+  int end = min(len, KEYS * KEY_CONFIG_SIZE); // stops overflows
+
+  for (int index = 0; index < end; index += KEY_CONFIG_SIZE) {
     int pin = config[index];
     int key_code = config[index + 1];
     int keycode_alt = config[index + 2];
