@@ -6,10 +6,11 @@
 #define BOARD003
 
 #ifdef BOARD003
-  #define MAX_PINS 30  
+  #define KEYS 19
 #else
-  #define MAX_PINS 5
+  #define KEYS 0
 #endif
+#define KEY_CONFIG_SIZE 3
 
 // Debounce is 'settling time' for the keypress, so a noisy key will take longer
 #define DEBOUNCE_MS 10
@@ -20,12 +21,13 @@
 
 #define SPECIAL_KEY_MOD 0xfe
 #define SPECIAL_KEY_BENCHMARK 0xfd
-#define NO_PIN -1
+#define NO_KEY 255
 
-bool keyboard_pin_valid(int i);
-
+void keyboard_config_flash_load();
+void keyboard_config_flash_save();
 int keyboard_config_read(uint8_t config[], uint8_t len);
 void keyboard_config_set(uint8_t config[], uint8_t len);
+void keyboard_config_reset();
 
 void keyboard_init();
 bool keyboard_update();
@@ -33,6 +35,7 @@ bool keyboard_update();
 void key_press(int key_code);
 void key_release(int key_code);
 
-uint8_t * get_key_report();
+uint8_t * get_keycode_report();
+uint8_t * get_raw_report();
 
 #endif /* KEYBOARD_H_ */

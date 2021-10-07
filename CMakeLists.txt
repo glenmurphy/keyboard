@@ -8,6 +8,7 @@ add_executable(${PROJECTNAME}
                main.c
                usb_descriptors.c
                led.c
+               save.c
                keyboard.c)
 
 pico_sdk_init()
@@ -21,6 +22,7 @@ target_link_libraries(${PROJECTNAME}
                       tinyusb_device
                       tinyusb_board
                       hardware_gpio
+                      hardware_flash
                       #hardware_adc
                       #hardware_i2c
                       #hardware_spi

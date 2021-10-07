@@ -37,7 +37,7 @@
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
 // WebUSB stuff
-#define URL "example.tinyusb.org/webusb-serial/"
+#define URL "kb003.config.interface.systems"
 const tusb_desc_webusb_url_t desc_url =
 {
   .bLength         = 3 + sizeof(URL) - 1,
@@ -49,6 +49,7 @@ static bool web_serial_connected = false;
 
 //------------- prototypes -------------//
 void webserial_task(void);
+void send_webusb_message(char type, uint8_t * data, uint8_t data_size);
 void hid_task(void);
 
 /*------------- MAIN -------------*/
@@ -64,11 +65,11 @@ int main(void)
   while (1)
   {
     tud_task(); // tinyusb device task
-    
+
     hid_task();
     webserial_task();
-    
-    led_update();
+
+    led_task();
   }
 
   return 0;
@@ -116,7 +117,7 @@ static void send_hid_report()
     return;
   }
 
-  uint8_t * report = get_key_report();
+  uint8_t * report = get_keycode_report();
   tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, report);
 
   hid_queued = false;
@@ -126,7 +127,7 @@ static void send_media_report()
 {
   static uint16_t media_key_held = 0;
   uint16_t media_key = 0;
-  uint8_t * report = get_key_report();
+  uint8_t * report = get_keycode_report();
 
   for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
     if (report[i] == HID_KEY_VOLUME_UP)
@@ -153,13 +154,9 @@ void send_webusb_report() {
   if (!web_serial_connected)
     return;
   
-  uint8_t message[7];
-  message[0] = 'r';
-  uint8_t * report = get_key_report(); // need to replace this with a pins-down map
-  for (int i = 0; i < KEYBOARD_REPORT_SIZE; i++) {
-    message[i + 1] = report[i];
-  }
-  tud_vendor_write(message, 7);
+  uint8_t * report = get_raw_report(); // need to replace this with a pins-down map
+
+  send_webusb_message('r', report, KEYS);
 }
 
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
@@ -242,12 +239,29 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
   return 0;
 }
 
-// send characters to both CDC and WebUSB
-void echo_all(uint8_t buf[], uint32_t count)
-{
-  if ( web_serial_connected ) {
-    
-  }
+// Stub so we can implement queuing to prevent message
+// concatenation - the problem is we don't know the
+// window of the concating.
+//
+// Need to look at https://github.com/hathach/tinyusb/blob/src/class/vendor/vendor_device.c
+// and tud_vendor_write_available() to see if those provide clues
+void send_webusb_message(char type, uint8_t * data, uint8_t data_size) {
+  if (!web_serial_connected)
+    return;
+
+  // Need to check that this does what we think it does
+  //if (!tud_vendor_available())
+  //  return;
+
+  int buf_size = data_size + 2;
+  uint8_t buf[buf_size];
+
+  memset(buf, 0, buf_size);
+  buf[0] = buf_size;
+  buf[1] = type;
+  memcpy(buf + 2, data, data_size);
+
+  tud_vendor_write(buf, buf_size);
 }
 
 //--------------------------------------------------------------------+
@@ -313,12 +327,15 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_requ
   return false;
 }
 
+void send_webusb_keyboard_config() {
+  uint8_t data[KEYS * KEY_CONFIG_SIZE];
+  uint8_t size = keyboard_config_read(data, sizeof(data));
+  send_webusb_message('c', data, size);
+}
+
 void webserial_task(void)
 {
   if (!web_serial_connected)
-    return;
-
-  if (!tud_vendor_available())
     return;
 
   uint8_t buf[128]; // need to check this
@@ -330,25 +347,14 @@ void webserial_task(void)
 
   if(buf[0] == 'c') {
     // Read the config and send
-
-    uint8_t message[64];
-    message[0] = 'c';
-    uint8_t size = keyboard_config_read(message + 1, sizeof(message) - 1);
-    tud_vendor_write(message, size + 1);
-
+    send_webusb_keyboard_config();
   } else if (buf[0] == 's') {
     // Set the keymap
     keyboard_config_set(buf + 1, count - 1);
+    keyboard_config_flash_save();
+    send_webusb_keyboard_config();
+  } else if (buf[0] == 'd') {
+    keyboard_config_reset();
+    send_webusb_keyboard_config();
   }
-
-  // echo_all(config, MAX_PINS * 3);
-  // Need to split this across multiple packets, as the packets are limited to 64 bytes
-  /*
-  switch(buf[0]) {
-    case 'c':
-      break;
-    default:
-      echo_all(buf, count);
-  }
-  */ 
 }

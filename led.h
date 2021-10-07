@@ -12,6 +12,6 @@ enum  {
 void led_init();
 void led_blink(int interval);
 void led_solid(bool on);
-void led_update();
+void led_task();
 
 #endif /* LED_H_ */

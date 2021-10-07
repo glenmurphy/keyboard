@@ -18,7 +18,7 @@ void led_solid(bool on) {
   led_state = on;
 }
 
-void led_update() {
+void led_task() {
   static uint32_t start_ms = 0;
 
   // blink is disabled
